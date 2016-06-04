@@ -6,6 +6,6 @@ package io.femo.ws;
 @FunctionalInterface
 public interface WebSocketEventHandler {
 
-    void handleMessage(String type, String data);
+    void handleMessage(Constants.WEBSOCKET.FRAME.DataType dataType, byte[] data, WebSocketConnection webSocketConnection);
 
 }
