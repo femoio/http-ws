@@ -2,10 +2,10 @@
 
 git clone https://gitlab.com/xjs/dynamic.git dynamic
 cd dynamic
-mvn install
+mvn install -Dmaven.javadoc.skip=true -DskipTests=true -B -V
 cd ..
 
-git clone https://gitlab.com/xjs/http.git http
+git clone https://github.com/femoio/http.git http
 cd http
-mvn install
+mvn install -Dmaven.javadoc.skip=true -DskipTests=true -B -V
 cd ..
