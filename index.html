@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>WebSocket Library Test</title>
+    <style>
+        html {
+            font-family: Helvetica;
+        }
+        h1 {
+            background-color: darkblue;
+            color: white;
+            padding: 5px;
+            margin: 0px;
+        }
+        p {
+            margin-bottom: 2px;
+            margin-top: 2px;
+        }
+
+        p.message {
+            margin-left: 5px;
+        }
+
+        #messages {
+            border: 1px solid lightgray;
+            min-height: 200px;
+            overflow-y: visible;
+        }
+
+        .container {
+            margin-bottom: 5px;
+            width: 100%
+        }
+
+        .container #username,
+        .container #send {
+            width: 10%;
+        }
+
+        .container #message {
+            width: 76%;
+        }
+
+
+    </style>
+    <script src="/script"></script>
+    <script>
+        window.addEventListener("load", function () {
+            const output = document.getElementById("messages");
+            const msg = document.getElementById("message");
+            const username = document.getElementById("username");
+            const send = document.getElementById("send");
+            let name;
+            function append(color, msg) {
+                var pre = document.createElement("p");
+                pre.style.wordWrap = "break-word";
+                pre.style.color = color;
+                pre.classList.add("message");
+                pre.innerHTML = msg;
+                output.appendChild(pre);
+            }
+            let socket = ws("ws://${{req.host}}/indexws");
+            socket.on("msg", function (data) {
+                append('darkblue', '<strong>' + data.user + "</strong> " + data.msg);
+            });
+            socket.on("joined", function (data) {
+                append("lightgray", '<strong>' + data + '</strong> joined!')
+            });
+            socket.on("renamed", function (data) {
+                append("lightgray", '<strong>' + data.old + '</strong> is now called <strong>' + data.new +'</strong>');
+            });
+            socket.on("open", function () {
+                socket.send("test", "Hello World");
+                if(username.value != '') {
+                    msg.disabled = false;
+                    send.disabled = false;
+                    socket.send("joined", username.value);
+                    name = username.value;
+                }
+                username.onblur = function () {
+                    if(username.value != '') {
+                        msg.disabled = false;
+                        send.disabled = false;
+                        if(name == undefined) {
+                            socket.send("joined", username.value);
+                        } else {
+                            socket.send("renamed", {old: name, new: username.value});
+                        }
+                        name = username.value;
+                    } else {
+                        msg.disabled = true;
+                        send.disabled = true;
+                    }
+                };
+                username.onkeydown = function (evt) {
+                    if(evt.keyCode == 13) {
+                        msg.focus();
+                    } else if (evt.keyCode == 9) {
+                        evt.preventDefault();
+                        if(username.value != '') {
+                            msg.disabled = false;
+                            send.disabled = false;
+                            msg.focus();
+                            if(username.value != name) {
+                                username.onblur();
+                            }
+                        }
+                    }
+                };
+                msg.onkeydown = function (evt) {
+                    if(evt.keyCode == 13) {
+                        send.onclick();
+                    }
+                };
+            });
+            send.onclick = function (evt) {
+                if(username.value != '' && msg.value != '') {
+                    append('gray', '<strong>' + username.value + "</strong> " + msg.value);
+                    socket.send("msg", {user: username.value, msg: msg.value});
+                    msg.value = "";
+                    msg.focus();
+                }
+            }
+        }, false);
+    </script>
+</head>
+<body>
+    <h1>WebSocket Library Test</h1>
+    <p>This is a simple test and showcase for the FeMo.IO WebSocket Library</p>
+    <div class="container">
+        <input type="text" id="username" placeholder="Username" >
+        <input type="text" id="message" placeholder="Message" disabled>
+        <button id="send" disabled>Send</button>
+    </div>
+    <div id="messages"></div>
+</body>
+</html>

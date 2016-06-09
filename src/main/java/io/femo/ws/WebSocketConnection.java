@@ -1,12 +1,17 @@
 package io.femo.ws;
 
+import com.google.gson.JsonObject;
+import io.femo.ws.lib.WebSocketLibraryConnection;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Created by felix on 6/4/16.
@@ -21,6 +26,15 @@ public class WebSocketConnection extends Thread {
     private Socket socket;
     private AtomicBoolean open = new AtomicBoolean(true);
     private AtomicBoolean closing = new AtomicBoolean(false);
+    private static AtomicInteger counter = new AtomicInteger(0);
+
+    private ThreadLocal<Integer> number = new ThreadLocal<Integer>() {
+        @NotNull
+        @Override
+        protected Integer initialValue() {
+            return counter.getAndIncrement();
+        }
+    };
 
     public WebSocketConnection(WebSocketHandler webSocketHandler, Socket socket) throws IOException {
         this.webSocketHandler = webSocketHandler;
@@ -31,6 +45,7 @@ public class WebSocketConnection extends Thread {
 
     @Override
     public void run() {
+        setName(String.format("ws-handler-%04d", number.get()));
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         boolean frag = false;
         int opcode = 0;
@@ -95,6 +110,8 @@ public class WebSocketConnection extends Thread {
                             synchronized (outputStream) {
                                 pongFrame.write(outputStream);
                             }
+                        } else if (webSocketFrame.getOpcode() == Constants.WEBSOCKET.FRAME.OPCODES.PONG) {
+                            LOGGER.info("Received pong with message {} ", new String(webSocketFrame.getApplicationData()));
                         } else {
                             webSocketHandler.raise(webSocketFrame.getOpcode(), webSocketFrame.getApplicationData(), this);
                         }
@@ -113,6 +130,22 @@ public class WebSocketConnection extends Thread {
         close((short) 1000);
     }
 
+    public void ping(String message) {
+        WebSocketFrame pingFrame = new WebSocketFrame();
+        pingFrame.setOpcode(Constants.WEBSOCKET.FRAME.OPCODES.PING);
+        pingFrame.setFin(true);
+        byte[] payload = message.getBytes();
+        pingFrame.setPayloadLength(payload.length);
+        pingFrame.setApplicationData(payload);
+        synchronized (outputStream) {
+            try {
+                pingFrame.write(outputStream);
+            } catch (IOException e) {
+                LOGGER.warn("Error while sending ping!", e);
+            }
+        }
+    }
+
     public void close(short statuscode) {
         WebSocketFrame webSocketFrame = new WebSocketFrame();
         webSocketFrame.setFin(true);
@@ -124,7 +157,7 @@ public class WebSocketConnection extends Thread {
             try {
                 webSocketFrame.write(outputStream);
             } catch (IOException e) {
-                LOGGER.error("Exception while closing the connection with status " + statuscode, e);
+                LOGGER.warn("Exception while closing the connection with status " + statuscode + ". Connection probably already closed!");
             }
         }
     }
@@ -146,5 +179,25 @@ public class WebSocketConnection extends Thread {
 
     public void send(String data) throws IOException {
         send(Constants.WEBSOCKET.FRAME.DataType.TEXT, data.getBytes("UTF-8"));
+    }
+
+    public WebSocketHandler handler() {
+        return webSocketHandler;
+    }
+
+    public boolean isOpen() {
+        return open.get();
+    }
+
+    public boolean isClosed() {
+        return !isOpen();
+    }
+
+    public void broadcastExcept(String data, List<WebSocketConnection> but) {
+        broadcastExcept(Constants.WEBSOCKET.FRAME.DataType.TEXT, data.getBytes(), but);
+    }
+
+    public void broadcastExcept(Constants.WEBSOCKET.FRAME.DataType dataType, byte[] data, List<WebSocketConnection> but) {
+        webSocketHandler.sendToAllExcept(dataType, data, but);
     }
 }

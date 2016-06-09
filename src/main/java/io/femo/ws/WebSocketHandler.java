@@ -2,7 +2,7 @@ package io.femo.ws;
 
 import io.femo.http.*;
 import io.femo.http.Http;
-import io.femo.http.helper.*;
+import io.femo.ws.lib.WebSocketLibraryHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,7 +13,6 @@ import java.net.Socket;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
 import java.util.Objects;
 
@@ -59,23 +58,27 @@ public class WebSocketHandler implements HttpHandler {
                                 .printBase64Binary(messageDigest.digest(accept.getBytes("UTF-8"))))
                             .status(101)
                             .header(Constants.WEBSOCKET.HEADERS.UPGRADE, Constants.WEBSOCKET.PROTO_NAME)
-                            .header(Constants.WEBSOCKET.HEADERS.CONNECTION, Constants.WEBSOCKET.HEADERS.UPGRADE);
+                            .header(Constants.WEBSOCKET.HEADERS.CONNECTION, Constants.WEBSOCKET.HEADERS.UPGRADE)
+                            .header("Content-Length", "0");
                     } catch (UnsupportedEncodingException e) {
                         e.printStackTrace();
                     }
                     messageDigest.reset();
-                    Socket socket = (Socket) io.femo.http.helper.Http.get().getFirst(Socket.class).get();
-                    LOGGER.debug("New WebSocket Client connecting from {} using version {} [{}]",
-                            socket.getInetAddress().toString(), request.header(Constants.WEBSOCKET.HEADERS.VERSION),
+                    Socket socket = io.femo.http.helper.Http.get().getFirst(Socket.class).get();
+                    LOGGER.debug("New WebSocket Client connecting from [{}]:{} using version {} [{}]",
+                            socket.getInetAddress().toString(), socket.getPort(), request.header(Constants.WEBSOCKET.HEADERS.VERSION),
                             request.header(Constants.WEBSOCKET.HEADERS.PROTOCOL));
                     io.femo.http.helper.Http.keepOpen();
-                    try {
-                        WebSocketConnection webSocketConnection = new WebSocketConnection(this, socket);
-                        webSocketConnection.start();
-                        connections.add(webSocketConnection);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    io.femo.http.helper.Http.callback(() -> {
+                        try {
+                            WebSocketConnection webSocketConnection = new WebSocketConnection(this, socket);
+                            webSocketConnection.start();
+                            connections.add(webSocketConnection);
+                            webSocketConnection.ping("Hello World");
+                        } catch (IOException e) {
+                            LOGGER.warn("Could not establish WebSocket connection", e);
+                        }
+                    });
                 } else {
                     LOGGER.warn("Invalid upgrade request received " + request.requestLine());
                     response.status(StatusCode.BAD_REQUEST);
@@ -100,9 +103,45 @@ public class WebSocketHandler implements HttpHandler {
             dataType = Constants.WEBSOCKET.FRAME.DataType.BINARY;
         } else if (opcode == Constants.WEBSOCKET.FRAME.OPCODES.TEXT_FRAME) {
             dataType = Constants.WEBSOCKET.FRAME.DataType.TEXT;
+        } else if (opcode == Constants.WEBSOCKET.FRAME.OPCODES.CONNECTION_CLOSE) {
+            dataType = Constants.WEBSOCKET.FRAME.DataType.CLOSE;
+            connections.remove(webSocketConnection);
         } else {
             dataType = Constants.WEBSOCKET.FRAME.DataType.UNKNOWN;
         }
         this.webSocketEventHandlers.forEach(w -> w.handleMessage(dataType, bytes, webSocketConnection));
+    }
+
+    public void sendToAll(String message) {
+        sendToAll(Constants.WEBSOCKET.FRAME.DataType.TEXT, message.getBytes());
+    }
+
+    public synchronized void sendToAll(Constants.WEBSOCKET.FRAME.DataType dataType, byte[] data) {
+        connections.removeIf(WebSocketConnection::isClosed);
+        connections.forEach(c -> {
+            try {
+                c.send(dataType, data);
+            } catch (IOException e) {
+                LOGGER.warn("Error while sending data to connection!", e);
+            }
+        });
+    }
+
+    public WebSocketLibraryHandler library() {
+        WebSocketLibraryHandler handler = new WebSocketLibraryHandler(this);
+        handler(handler);
+        return handler;
+    }
+
+    public void sendToAllExcept(Constants.WEBSOCKET.FRAME.DataType dataType, byte[] data, List<WebSocketConnection> but) {
+        connections.stream().filter(c -> !but.stream().anyMatch(ws -> ws.getName().equals(c.getName())))
+                .forEach(c -> {
+                    try {
+                        c.send(dataType, data);
+                    } catch (IOException e) {
+                        LOGGER.warn("Error while broadcasting data! Connection probably already closed!");
+                        c.close();
+                    }
+                });
     }
 }

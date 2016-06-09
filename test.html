@@ -3,12 +3,14 @@
 <title>WebSocket Test</title>
 <script language="javascript" type="text/javascript">
 
-    var wsUri = "ws://localhost:8080/ws";
-    var output;
+    var wsUri = "ws://192.168.0.30:8080/ws";
+    var output, user, message;
 
     function init()
     {
         output = document.getElementById("output");
+        user = document.getElementById("name");
+        message = document.getElementById("message");
         testWebSocket();
     }
 
@@ -35,7 +37,7 @@
     function onMessage(evt)
     {
         writeToScreen('<span style="color: blue;">RESPONSE: ' + evt.data+'</span>');
-        websocket.close();
+        //websocket.close();
     }
 
     function onError(evt)
@@ -57,11 +59,19 @@
         output.appendChild(pre);
     }
 
+    function sendMessage() {
+        websocket.send(user.value + ": " + message.value);
+    }
+
     window.addEventListener("load", init, false);
 
 </script>
 
 <h2>WebSocket Test</h2>
+
+<input type="text" id="name" placeholder="Username" />
+<input type="text" id="message" placeholder="Message" />
+<button onclick="sendMessage();">Send</button>
 
 <div id="output"></div>
           

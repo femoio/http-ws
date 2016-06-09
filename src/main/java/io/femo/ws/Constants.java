@@ -36,7 +36,7 @@ public final class Constants {
             }
 
             public enum DataType {
-                TEXT, BINARY, UNKNOWN
+                TEXT, BINARY, UNKNOWN, CLOSE
             }
         }
     }

@@ -45,7 +45,7 @@
         <dependency>
             <groupId>io.femo</groupId>
             <artifactId>http</artifactId>
-            <version>0.0.2</version>
+            <version>0.0.3</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
@@ -54,9 +54,24 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.6.2</version>
+        </dependency>
+        <dependency>
             <groupId>io.femo</groupId>
             <artifactId>dynamic</artifactId>
             <version>0.0.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <version>2.5</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-slf4j-impl</artifactId>
+            <version>2.5</version>
         </dependency>
     </dependencies>
 
@@ -64,7 +79,7 @@
         <site>
             <id>femoio-ftpserver</id>
             <name>FeMo.IO FTP Server</name>
-            <url>ftp://alfa3026.alfahosting-server.de/html/femoio/libs/http/</url>
+            <url>ftp://alfa3026.alfahosting-server.de/html/femoio/libs/http-ws/</url>
         </site>
     </distributionManagement>
 
