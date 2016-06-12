@@ -7,5 +7,6 @@ cd ..
 
 git clone https://github.com/femoio/http.git http
 cd http
+git checkout origin/devel
 mvn install -Dmaven.javadoc.skip=true -DskipTests=true -B -V
 cd ..

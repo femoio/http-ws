@@ -2,6 +2,7 @@ package io.femo.ws;
 
 import io.femo.http.*;
 import io.femo.http.Http;
+import io.femo.http.helper.HttpHelper;
 import io.femo.ws.lib.WebSocketLibraryHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,12 +65,12 @@ public class WebSocketHandler implements HttpHandler {
                         e.printStackTrace();
                     }
                     messageDigest.reset();
-                    Socket socket = io.femo.http.helper.Http.get().getFirst(Socket.class).get();
+                    Socket socket = HttpHelper.get().getFirst(Socket.class).get();
                     LOGGER.debug("New WebSocket Client connecting from [{}]:{} using version {} [{}]",
                             socket.getInetAddress().toString(), socket.getPort(), request.header(Constants.WEBSOCKET.HEADERS.VERSION),
                             request.header(Constants.WEBSOCKET.HEADERS.PROTOCOL));
-                    io.femo.http.helper.Http.keepOpen();
-                    io.femo.http.helper.Http.callback(() -> {
+                    HttpHelper.keepOpen();
+                    HttpHelper.callback(() -> {
                         try {
                             WebSocketConnection webSocketConnection = new WebSocketConnection(this, socket);
                             webSocketConnection.start();
